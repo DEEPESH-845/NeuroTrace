@@ -10,28 +10,56 @@ datasource db {
 }
 
 model Patient {
-  id                String   @id @default(uuid())
-  dateOfBirth       DateTime
-  gender            String
-  strokeDate        DateTime
-  strokeType        String
-  dischargeDate     DateTime
-  assignedClinician String
-  assignedHospital  String
-  enrollmentDate    DateTime
-  assessmentTime    String
-  timezone          String
-  language          String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                     String    @id @default(uuid())
+  dateOfBirth            DateTime
+  gender                 String
+  strokeDate             DateTime
+  strokeType             String
+  dischargeDate          DateTime
+  assignedClinician      String
+  assignedHospital       String
+  enrollmentDate         DateTime
+  programEndDate         DateTime
+  baselineEstablished    Boolean   @default(false)
+  baselineCompletionDate DateTime?
+  assessmentTime         String
+  timezone               String
+  language               String
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   assessments Assessment[]
   alerts      Alert[]
   baseline    Baseline?
+  caregivers  Caregiver[]
   auditLogs   AuditLog[]
 
   @@index([assignedClinician])
   @@index([assignedHospital])
+  @@index([enrollmentDate])
+}
+
+model Caregiver {
+  id                   String    @id @default(uuid())
+  patientId            String
+  name                 String
+  relationship         String
+  phoneNumber          String
+  email                String
+  pushEnabled          Boolean   @default(true)
+  smsEnabled           Boolean   @default(true)
+  emailEnabled         Boolean   @default(false)
+  invitationCode       String    @unique
+  invitationCodeExpiry DateTime
+  linkedAt             DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([invitationCode])
+  @@index([email])
 }
 
 model Assessment {
@@ -64,7 +92,7 @@ model Baseline {
 }
 
 model Alert {
-  id                    String   @id @default(uuid())
+  id                    String    @id @default(uuid())
   patientId             String
   severity              String // LOW, MEDIUM, HIGH
   triggeringAssessments String[] // Array of assessment IDs
@@ -73,8 +101,8 @@ model Alert {
   consecutiveDays       Int
   message               String
   recommendedActions    String[]
-  status                String   @default("ACTIVE") // ACTIVE, ACKNOWLEDGED, RESOLVED, FALSE_POSITIVE
-  createdAt             DateTime @default(now())
+  status                String    @default("ACTIVE") // ACTIVE, ACKNOWLEDGED, RESOLVED, FALSE_POSITIVE
+  createdAt             DateTime  @default(now())
   acknowledgedAt        DateTime?
   acknowledgedBy        String?
   clinicianNotes        String?
@@ -103,14 +131,14 @@ model Notification {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  userId     String
-  patientId  String?
-  resource   String
-  action     String
-  ipAddress  String
-  timestamp  DateTime @default(now())
-  details    Json?
+  id        String   @id @default(uuid())
+  userId    String
+  patientId String?
+  resource  String
+  action    String
+  ipAddress String
+  timestamp DateTime @default(now())
+  details   Json?
 
   patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
 
