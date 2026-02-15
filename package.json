@@ -1,0 +1,39 @@
+{
+  "name": "neurotrace-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NeuroTrace Monitoring System - AI-powered neurological safety net for post-stroke patients",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "mobile": "cd apps/mobile && npm start",
+    "backend": "cd apps/backend && npm run dev",
+    "dashboard": "cd apps/dashboard && npm run dev",
+    "admin": "cd apps/admin && npm run dev",
+    "caregiver": "cd apps/caregiver && npm start",
+    "test": "npm run test --workspaces",
+    "test:unit": "npm run test:unit --workspaces",
+    "test:property": "npm run test:property --workspaces",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "npm run typecheck --workspaces",
+    "build": "npm run build --workspaces",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

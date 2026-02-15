@@ -1,0 +1,141 @@
+// Prisma schema for PostgreSQL on Railway
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Patient {
+  id                String   @id @default(uuid())
+  dateOfBirth       DateTime
+  gender            String
+  strokeDate        DateTime
+  strokeType        String
+  dischargeDate     DateTime
+  assignedClinician String
+  assignedHospital  String
+  enrollmentDate    DateTime
+  assessmentTime    String
+  timezone          String
+  language          String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  assessments Assessment[]
+  alerts      Alert[]
+  baseline    Baseline?
+  auditLogs   AuditLog[]
+
+  @@index([assignedClinician])
+  @@index([assignedHospital])
+}
+
+model Assessment {
+  id             String   @id @default(uuid())
+  patientId      String
+  timestamp      DateTime
+  dayNumber      Int
+  derivedMetrics Json // JSONB for derived metrics
+  deviations     Json? // JSONB for deviations
+  alertGenerated Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, timestamp])
+  @@index([patientId, dayNumber])
+}
+
+model Baseline {
+  id              String   @id @default(uuid())
+  patientId       String   @unique
+  assessmentCount Int
+  speechMetrics   Json // JSONB for MetricBaseline
+  facialMetrics   Json // JSONB for MetricBaseline
+  reactionMetrics Json // JSONB for MetricBaseline
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model Alert {
+  id                    String   @id @default(uuid())
+  patientId             String
+  severity              String // LOW, MEDIUM, HIGH
+  triggeringAssessments String[] // Array of assessment IDs
+  sustainedDeviations   Json // JSONB for Deviation[]
+  affectedModalities    String[]
+  consecutiveDays       Int
+  message               String
+  recommendedActions    String[]
+  status                String   @default("ACTIVE") // ACTIVE, ACKNOWLEDGED, RESOLVED, FALSE_POSITIVE
+  createdAt             DateTime @default(now())
+  acknowledgedAt        DateTime?
+  acknowledgedBy        String?
+  clinicianNotes        String?
+
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([patientId, status])
+  @@index([severity, status])
+}
+
+model Notification {
+  id            String    @id @default(uuid())
+  alertId       String
+  recipientId   String
+  recipientType String // CAREGIVER, CLINICIAN
+  channel       String // PUSH, SMS, EMAIL
+  sentAt        DateTime  @default(now())
+  deliveredAt   DateTime?
+  readAt        DateTime?
+
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([alertId])
+  @@index([recipientId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  patientId  String?
+  resource   String
+  action     String
+  ipAddress  String
+  timestamp  DateTime @default(now())
+  details    Json?
+
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@index([userId, timestamp])
+  @@index([patientId, timestamp])
+  @@index([timestamp])
+}
+
+model FederatedGradient {
+  id           String   @id @default(uuid())
+  deviceId     String
+  modelVersion String
+  gradients    Bytes // Binary data for gradients
+  sampleCount  Int
+  createdAt    DateTime @default(now())
+
+  @@index([modelVersion, createdAt])
+}
+
+model GlobalModel {
+  id           String   @id @default(uuid())
+  modelVersion String   @unique
+  weights      Bytes // Binary data for model weights
+  accuracy     Float?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
