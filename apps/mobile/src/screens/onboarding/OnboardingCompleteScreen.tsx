@@ -1,22 +1,24 @@
 /**
- * OnboardingCompleteScreen - Onboarding completion screen
+ * OnboardingCompleteScreen - Final onboarding screen
  * 
- * Displays completion message and explains next steps for baseline establishment.
- * Requirements: 1.1, 1.3, 13.2, 13.4
+ * Completes the onboarding process by saving the patient profile
+ * and scheduling daily assessment reminders.
+ * Requirements: 1.1, 1.2
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { onboardingOrchestrator } from '../../onboarding';
 
 type OnboardingCompleteScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -33,111 +35,148 @@ interface OnboardingCompleteScreenProps {
 function OnboardingCompleteScreen({
   navigation,
 }: OnboardingCompleteScreenProps): React.JSX.Element {
-  const handleGetStarted = () => {
-    // TODO: Navigate to home screen or first assessment
-    navigation.navigate('Home');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [patientId, setPatientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Auto-complete onboarding when screen loads
+    completeOnboarding();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const completeOnboarding = async () => {
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      // Complete onboarding and save patient profile
+      const newPatientId = await onboardingOrchestrator.completeOnboarding();
+      setPatientId(newPatientId);
+      setIsProcessing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to complete onboarding');
+      setIsProcessing(false);
+    }
   };
+
+  const handleGetStarted = () => {
+    // Navigate to home screen
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Home' }],
+    });
+  };
+
+  const handleRetry = () => {
+    completeOnboarding();
+  };
+
+  if (isProcessing) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#1E3A8A" />
+        <View style={styles.content}>
+          <ActivityIndicator size="large" color="#1E3A8A" />
+          <Text style={styles.processingText}>Setting up your account...</Text>
+          <Text style={styles.processingSubtext}>
+            This will only take a moment
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#1E3A8A" />
+        <View style={styles.content}>
+          <View style={styles.errorIcon}>
+            <Text style={styles.errorIconText}>⚠️</Text>
+          </View>
+          <Text style={styles.errorTitle}>Setup Error</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={handleRetry}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1E3A8A" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          {/* Progress Indicator */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '100%' }]} />
-            </View>
-            <Text style={styles.progressText}>Complete!</Text>
-          </View>
+      <View style={styles.content}>
+        {/* Success Icon */}
+        <View style={styles.successIcon}>
+          <Text style={styles.successIconText}>✓</Text>
+        </View>
 
-          {/* Success Icon */}
-          <View style={styles.successIcon}>
-            <Text style={styles.successEmoji}>✓</Text>
-          </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>You&apos;re All Set!</Text>
+          <Text style={styles.subtitle}>
+            Your NeuroTrace account is ready
+          </Text>
+        </View>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>You're All Set!</Text>
-            <Text style={styles.subtitle}>
-              Welcome to your recovery journey with NeuroTrace
+        {/* Info Cards */}
+        <View style={styles.infoCards}>
+          <View style={styles.infoCard}>
+            <Text style={styles.infoCardIcon}>📅</Text>
+            <Text style={styles.infoCardTitle}>Daily Assessments</Text>
+            <Text style={styles.infoCardText}>
+              Complete a quick 60-second assessment each day
             </Text>
           </View>
 
-          {/* Next Steps */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>What Happens Next?</Text>
-
-            <View style={styles.stepCard}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>1</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Baseline Period (7 Days)</Text>
-                <Text style={styles.stepText}>
-                  Complete daily 60-second assessments to establish your
-                  personal baseline. This helps us understand what's normal for
-                  you.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.stepCard}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>2</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Daily Monitoring</Text>
-                <Text style={styles.stepText}>
-                  After your baseline is set, we'll monitor for changes and
-                  alert your caregiver if we detect anything concerning.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.stepCard}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>3</Text>
-              </View>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Stay Consistent</Text>
-                <Text style={styles.stepText}>
-                  Complete assessments at your scheduled time each day. Missing
-                  more than 2 assessments will extend your baseline period.
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Reminder Notice */}
-          <View style={styles.reminderNotice}>
-            <Text style={styles.reminderText}>
-              🔔 You'll receive a daily reminder at your chosen time. Each
-              assessment takes just 60 seconds!
+          <View style={styles.infoCard}>
+            <Text style={styles.infoCardIcon}>📊</Text>
+            <Text style={styles.infoCardTitle}>Track Your Progress</Text>
+            <Text style={styles.infoCardText}>
+              Monitor your recovery over the next 90 days
             </Text>
           </View>
 
-          {/* Privacy Reminder */}
-          <View style={styles.privacyReminder}>
-            <Text style={styles.privacyText}>
-              🔒 Remember: All processing happens on your device. Your privacy
-              is protected.
+          <View style={styles.infoCard}>
+            <Text style={styles.infoCardIcon}>🔔</Text>
+            <Text style={styles.infoCardTitle}>Stay Informed</Text>
+            <Text style={styles.infoCardText}>
+              Get alerts if we detect any changes
             </Text>
           </View>
         </View>
-      </ScrollView>
+
+        {/* Patient ID (for reference) */}
+        {patientId && (
+          <View style={styles.patientIdContainer}>
+            <Text style={styles.patientIdLabel}>Your Patient ID:</Text>
+            <Text style={styles.patientIdText}>{patientId.slice(0, 8)}</Text>
+          </View>
+        )}
+      </View>
 
       {/* Get Started Button */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.button}
+          style={styles.getStartedButton}
           onPress={handleGetStarted}
           activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>Start My First Assessment</Text>
+          <Text style={styles.getStartedButtonText}>Get Started</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -149,135 +188,129 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  scrollContent: {
-    flexGrow: 1,
-  },
   content: {
     flex: 1,
     padding: 24,
-  },
-  progressContainer: {
-    marginBottom: 32,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#10B981',
-  },
-  progressText: {
-    fontSize: 18,
-    color: '#10B981',
-    marginTop: 8,
-    textAlign: 'center',
-    fontWeight: '600',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#10B981',
-    alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 24,
+    alignItems: 'center',
+    marginBottom: 32,
   },
-  successEmoji: {
-    fontSize: 48,
+  successIconText: {
+    fontSize: 60,
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-  header: {
+  errorIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 32,
+  },
+  errorIconText: {
+    fontSize: 60,
+  },
+  header: {
+    marginBottom: 40,
     alignItems: 'center',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#1E3A8A',
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
+    fontSize: 20,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  processingText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1E3A8A',
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  processingSubtext: {
+    fontSize: 18,
+    color: '#64748B',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  errorTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#EF4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  errorMessage: {
     fontSize: 18,
     color: '#64748B',
     textAlign: 'center',
+    marginBottom: 32,
     lineHeight: 26,
   },
-  section: {
-    marginBottom: 24,
+  infoCards: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 32,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1E3A8A',
-    marginBottom: 20,
-  },
-  stepCard: {
-    flexDirection: 'row',
+  infoCard: {
     backgroundColor: '#F8FAFC',
     padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1E3A8A',
-  },
-  stepNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1E3A8A',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
   },
-  stepNumberText: {
+  infoCardIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  infoCardTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  stepContent: {
-    flex: 1,
-  },
-  stepTitle: {
-    fontSize: 18,
     fontWeight: '600',
     color: '#1E3A8A',
     marginBottom: 8,
+    textAlign: 'center',
   },
-  stepText: {
+  infoCardText: {
     fontSize: 18,
-    lineHeight: 26,
-    color: '#334155',
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 24,
   },
-  reminderNotice: {
+  patientIdContainer: {
     backgroundColor: '#EFF6FF',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    alignItems: 'center',
   },
-  reminderText: {
+  patientIdLabel: {
     fontSize: 18,
-    lineHeight: 26,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  patientIdText: {
+    fontSize: 20,
+    fontWeight: '600',
     color: '#1E3A8A',
-  },
-  privacyReminder: {
-    backgroundColor: '#F0FDF4',
-    padding: 16,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-  },
-  privacyText: {
-    fontSize: 18,
-    lineHeight: 26,
-    color: '#065F46',
+    fontFamily: 'monospace',
   },
   footer: {
     padding: 24,
@@ -286,19 +319,42 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
   },
-  button: {
-    backgroundColor: '#10B981',
+  getStartedButton: {
+    backgroundColor: '#1E3A8A',
+    paddingVertical: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 56,
+  },
+  getStartedButtonText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  retryButton: {
+    backgroundColor: '#1E3A8A',
     paddingVertical: 18,
     paddingHorizontal: 32,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 56,
+    marginBottom: 16,
   },
-  buttonText: {
+  retryButtonText: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '600',
+  },
+  backButton: {
+    paddingVertical: 12,
+  },
+  backButtonText: {
+    color: '#64748B',
+    fontSize: 18,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
 

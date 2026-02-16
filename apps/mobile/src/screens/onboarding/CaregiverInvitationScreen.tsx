@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { onboardingOrchestrator } from '../../onboarding';
 
 type CaregiverInvitationScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -67,6 +68,9 @@ function CaregiverInvitationScreen({
       // Simulate API call
       await new Promise<void>((resolve) => setTimeout(resolve, 1500));
 
+      // Save caregiver code to orchestrator
+      onboardingOrchestrator.saveCaregiverCode(invitationCode);
+
       // For now, accept any valid format code
       // In production, this would validate against backend
       navigation.navigate('OnboardingComplete');
@@ -80,6 +84,9 @@ function CaregiverInvitationScreen({
   };
 
   const handleSkip = () => {
+    // Save undefined caregiver code (skipped)
+    onboardingOrchestrator.saveCaregiverCode(undefined);
+    
     // Allow skipping caregiver setup
     navigation.navigate('OnboardingComplete');
   };

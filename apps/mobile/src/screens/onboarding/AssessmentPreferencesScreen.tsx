@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { onboardingOrchestrator } from '../../onboarding';
 
 type AssessmentPreferencesScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -64,22 +65,30 @@ function AssessmentPreferencesScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const validateForm = (): boolean => {
-    const newErrors: { [key: string]: string } = {};
-
-    if (!timezone) {
-      newErrors.timezone = 'Please select a timezone';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleNext = () => {
-    if (validateForm()) {
-      // TODO: Save assessment preferences
-      navigation.navigate('CaregiverInvitation');
+    // Validate using orchestrator
+    const validation = onboardingOrchestrator.validateAssessmentPreferences({
+      hour: selectedHour,
+      minute: selectedMinute,
+      period: selectedPeriod,
+      timezone,
+    });
+
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      return;
     }
+
+    // Save assessment preferences to orchestrator
+    onboardingOrchestrator.saveAssessmentPreferences({
+      hour: selectedHour,
+      minute: selectedMinute,
+      period: selectedPeriod,
+      timezone,
+    });
+
+    // Navigate to next step
+    navigation.navigate('CaregiverInvitation');
   };
 
   const handleBack = () => {

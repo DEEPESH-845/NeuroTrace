@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { onboardingOrchestrator } from '../../onboarding';
 
 type ClinicalInfoScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -44,48 +45,32 @@ function ClinicalInfoScreen({
 
   const strokeTypes = ['Ischemic', 'Hemorrhagic', 'TIA', 'Other'];
 
-  const validateForm = (): boolean => {
-    const newErrors: { [key: string]: string } = {};
-
-    // Validate dates (simple format check MM/DD/YYYY)
-    const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
-
-    if (!strokeDate) {
-      newErrors.strokeDate = 'Stroke date is required';
-    } else if (!dateRegex.test(strokeDate)) {
-      newErrors.strokeDate = 'Please use MM/DD/YYYY format';
-    }
-
-    if (!dischargeDate) {
-      newErrors.dischargeDate = 'Discharge date is required';
-    } else if (!dateRegex.test(dischargeDate)) {
-      newErrors.dischargeDate = 'Please use MM/DD/YYYY format';
-    }
-
-    // Validate stroke type
-    if (!strokeType) {
-      newErrors.strokeType = 'Please select stroke type';
-    }
-
-    // Validate clinician name
-    if (!clinicianName.trim()) {
-      newErrors.clinicianName = 'Clinician name is required';
-    }
-
-    // Validate hospital name
-    if (!hospitalName.trim()) {
-      newErrors.hospitalName = 'Hospital name is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleNext = () => {
-    if (validateForm()) {
-      // TODO: Save clinical info data
-      navigation.navigate('AssessmentPreferences');
+    // Validate using orchestrator
+    const validation = onboardingOrchestrator.validateClinicalInfo({
+      strokeDate,
+      strokeType,
+      dischargeDate,
+      clinicianName,
+      hospitalName,
+    });
+
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      return;
     }
+
+    // Save clinical info data to orchestrator
+    onboardingOrchestrator.saveClinicalInfo({
+      strokeDate,
+      strokeType,
+      dischargeDate,
+      clinicianName,
+      hospitalName,
+    });
+
+    // Navigate to next step
+    navigation.navigate('AssessmentPreferences');
   };
 
   const handleBack = () => {

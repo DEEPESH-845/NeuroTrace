@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { onboardingOrchestrator } from '../../onboarding';
 
 type DemographicsScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -40,31 +41,26 @@ function DemographicsScreen({
 
   const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
-  const validateForm = (): boolean => {
-    const newErrors: { [key: string]: string } = {};
-
-    // Validate date of birth (simple format check MM/DD/YYYY)
-    const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
-    if (!dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
-    } else if (!dateRegex.test(dateOfBirth)) {
-      newErrors.dateOfBirth = 'Please use MM/DD/YYYY format';
-    }
-
-    // Validate gender
-    if (!gender) {
-      newErrors.gender = 'Please select your gender';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleNext = () => {
-    if (validateForm()) {
-      // TODO: Save demographics data
-      navigation.navigate('ClinicalInfo');
+    // Validate using orchestrator
+    const validation = onboardingOrchestrator.validateDemographics({
+      dateOfBirth,
+      gender,
+    });
+
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      return;
     }
+
+    // Save demographics data to orchestrator
+    onboardingOrchestrator.saveDemographics({
+      dateOfBirth,
+      gender,
+    });
+
+    // Navigate to next step
+    navigation.navigate('ClinicalInfo');
   };
 
   const handleBack = () => {
