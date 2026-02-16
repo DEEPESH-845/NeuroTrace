@@ -34,11 +34,11 @@ export interface DatabaseInitResult {
 /**
  * Initialize database with encryption and run migrations
  * 
- * @param encryptionKey - AES-256 encryption key for SQLCipher
+ * @param _encryptionKey - AES-256 encryption key for SQLCipher (not yet implemented)
  * @returns Initialization result
  */
 export async function initializeDatabase(
-  encryptionKey: string
+  _encryptionKey: string
 ): Promise<DatabaseInitResult> {
   try {
     // Validate migrations before applying
@@ -52,12 +52,20 @@ export async function initializeDatabase(
       };
     }
 
-    // Open encrypted database connection
+    // Open database connection
+    // Note: react-native-quick-sqlite doesn't support encryption key in open()
+    // For SQLCipher encryption, we need to use a different approach or library
+    // For now, we'll open without encryption and add proper SQLCipher support later
     dbConnection = open({
       name: DATABASE_CONFIG.name,
       location: DATABASE_CONFIG.location,
-      encryptionKey, // SQLCipher AES-256 encryption
     });
+    
+    // TODO: Implement proper SQLCipher encryption
+    // This requires either:
+    // 1. Using @op-engineering/op-sqlite which supports SQLCipher
+    // 2. Or using react-native-sqlite-storage with SQLCipher enabled
+    console.warn('Database encryption not yet implemented - using unencrypted storage');
 
     // Create schema version tracking table if it doesn't exist
     dbConnection.execute(CREATE_VERSION_TABLE_SQL);
@@ -245,7 +253,8 @@ export interface DatabaseStats {
 }
 
 export function getDatabaseStats(): DatabaseStats {
-  const db = getDatabase();
+  // Ensure database is initialized
+  getDatabase();
   
   const patientCount = executeQuerySingle<{ count: number }>(
     'SELECT COUNT(*) as count FROM patients'
@@ -304,7 +313,9 @@ export * from './LocalStorageManager';
 export * from './SyncManager';
 
 export function exportSchema(): string[] {
-  const db = getDatabase();
+  // Ensure database is initialized
+  getDatabase();
+  
   const result = executeQuery<{ sql: string }>(
     "SELECT sql FROM sqlite_master WHERE type='table' OR type='index' OR type='trigger' ORDER BY type, name"
   );

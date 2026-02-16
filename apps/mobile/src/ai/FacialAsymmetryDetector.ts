@@ -33,8 +33,9 @@ export class MediaPipeInitializationError extends Error {
 
 /**
  * Interface for facial asymmetry detection
+ * Note: Using 'any' for image data to avoid DOM type dependencies in React Native
  */
-export interface FacialAsymmetryDetector {
+export interface IFacialAsymmetryDetector {
   /**
    * Initialize the MediaPipe Face Mesh model
    */
@@ -45,13 +46,13 @@ export interface FacialAsymmetryDetector {
    * @throws {FaceNotVisibleError} When no face is detected
    * @throws {MediaPipeInitializationError} When detector is not initialized
    */
-  detectAsymmetry(imageData: ImageData): Promise<FacialMetrics>;
+  detectAsymmetry(imageData: any): Promise<FacialMetrics>;
   
   /**
    * Extract facial landmarks from an image
    * @throws {FaceNotVisibleError} When no face is detected
    */
-  extractFacialLandmarks(image: ImageData): Promise<FacialLandmarks>;
+  extractFacialLandmarks(image: any): Promise<FacialLandmarks>;
   
   /**
    * Compute symmetry score from landmarks
@@ -67,7 +68,7 @@ export interface FacialAsymmetryDetector {
 /**
  * MediaPipe-based implementation of FacialAsymmetryDetector
  */
-export class MediaPipeFacialAsymmetryDetector implements FacialAsymmetryDetector {
+export class MediaPipeFacialAsymmetryDetector implements IFacialAsymmetryDetector {
   private faceLandmarker: FaceLandmarker | null = null;
   private initialized: boolean = false;
 
@@ -104,7 +105,7 @@ export class MediaPipeFacialAsymmetryDetector implements FacialAsymmetryDetector
   /**
    * Detect facial asymmetry from an image
    */
-  async detectAsymmetry(imageData: ImageData): Promise<FacialMetrics> {
+  async detectAsymmetry(imageData: any): Promise<FacialMetrics> {
     if (!this.initialized || !this.faceLandmarker) {
       throw new MediaPipeInitializationError('FacialAsymmetryDetector not initialized. Call initialize() first.');
     }
@@ -137,24 +138,19 @@ export class MediaPipeFacialAsymmetryDetector implements FacialAsymmetryDetector
 
   /**
    * Extract 468 facial landmarks from an image
+   * Note: In React Native, this will receive image data from react-native-vision-camera
    */
-  async extractFacialLandmarks(image: ImageData): Promise<FacialLandmarks> {
+  async extractFacialLandmarks(image: any): Promise<FacialLandmarks> {
     if (!this.initialized || !this.faceLandmarker) {
       throw new MediaPipeInitializationError('FacialAsymmetryDetector not initialized. Call initialize() first.');
     }
 
-    // Convert ImageData to HTMLImageElement for MediaPipe
-    const canvas = document.createElement('canvas');
-    canvas.width = image.width;
-    canvas.height = image.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Failed to create canvas context');
-    }
-    ctx.putImageData(image, 0, 0);
-
+    // Note: In React Native, image will come from react-native-vision-camera
+    // For now, we'll assume the image is already in a format MediaPipe can process
+    // This will be properly implemented when integrating with the camera
+    
     // Detect face landmarks
-    const result: FaceLandmarkerResult = this.faceLandmarker.detect(canvas);
+    const result: FaceLandmarkerResult = this.faceLandmarker.detect(image);
 
     // Check if face was detected
     if (!result.faceLandmarks || result.faceLandmarks.length === 0) {
@@ -344,7 +340,7 @@ export class MediaPipeFacialAsymmetryDetector implements FacialAsymmetryDetector
 /**
  * Factory function to create and initialize a FacialAsymmetryDetector
  */
-export async function createFacialAsymmetryDetector(): Promise<FacialAsymmetryDetector> {
+export async function createFacialAsymmetryDetector(): Promise<IFacialAsymmetryDetector> {
   const detector = new MediaPipeFacialAsymmetryDetector();
   await detector.initialize();
   return detector;
