@@ -3,12 +3,14 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(test|property.test).ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/**/*.test.ts',
     '!src/**/*.property.test.ts',
     '!src/index.ts',
+    '!src/__tests__/setup.ts',
   ],
   coverageThreshold: {
     global: {
