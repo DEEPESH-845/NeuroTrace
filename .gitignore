@@ -7,6 +7,8 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 .vscode/
+mcp_config.json
+.vscode/mcp_config.json
 .md
 
 # Runtime data
