@@ -9,7 +9,8 @@
  */
 
 import { syncManager } from '../database/SyncManager';
-import { localStorageManager } from '../database/LocalStorageManager';
+import { localStorageManager, FederatedModel } from '../database/LocalStorageManager';
+import { offlineManager } from '../database/OfflineManager';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -39,13 +40,10 @@ export interface FederatedConfig {
     maxGradientNorm: number;
     /** Whether to participate in federated learning */
     participationEnabled: boolean;
-}
-
-export interface ModelInfo {
-    version: string;
-    roundNumber: number;
-    parameters: number[];
-    receivedAt: Date;
+    /** Model update check interval */
+    updateCheckIntervalMs: number;
+    /** Backend FL coordinator URL */
+    serverUrl: string;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -55,6 +53,8 @@ const DEFAULT_FEDERATED_CONFIG: FederatedConfig = {
     noiseScale: 0.1,
     maxGradientNorm: 1.0,
     participationEnabled: true,
+    updateCheckIntervalMs: 24 * 60 * 60 * 1000, // 24 hours
+    serverUrl: 'https://api.neurotrace.com/v1/federated',
 };
 
 // ─── PHI Patterns ───────────────────────────────────────────────────────────
@@ -73,23 +73,83 @@ const PHI_PATTERNS = [
  */
 export class FederatedLearningClient {
     private config: FederatedConfig;
-    private currentModel: ModelInfo | null = null;
+    private currentModel: FederatedModel | null = null;
     private submissionCount: number = 0;
+    private initialized: boolean = false;
 
     constructor(config: FederatedConfig = DEFAULT_FEDERATED_CONFIG) {
         this.config = config;
     }
 
     /**
-     * Receive a model update from the federated coordinator.
+     * Initialize client by loading latest model from storage
      */
-    receiveModel(modelVersion: string, roundNumber: number, parameters: number[]): void {
-        this.currentModel = {
+    async initialize(): Promise<void> {
+        if (this.initialized) return;
+
+        try {
+            this.currentModel = await localStorageManager.getLatestModel();
+            console.log('FederatedLearningClient initialized. Model version:', this.currentModel?.version || 'none');
+            this.initialized = true;
+        } catch (error) {
+            console.error('Failed to initialize FederatedLearningClient:', error);
+        }
+    }
+
+    /**
+     * Check for model updates from the server
+     * 
+     * @returns True if a new model was downloaded
+     */
+    async checkForModelUpdates(): Promise<void> {
+        // Only check if online
+        const status = offlineManager.getStatus();
+        if (!status.isOnline) {
+            return;
+        }
+        if (!this.config.participationEnabled) return;
+
+        try {
+            const response = await fetch(`${this.config.serverUrl}/model/latest`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch model: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Check if model is new
+            if (data.version !== this.currentModel?.version) {
+                // Download new model
+                const model: FederatedModel = {
+                    version: data.version,
+                    roundNumber: data.roundNumber,
+                    parameters: data.parameters,
+                    receivedAt: new Date().toISOString(),
+                };
+
+                await localStorageManager.saveModel(model);
+                this.currentModel = model;
+                console.log(`Downloaded new model version: ${model.version}`);
+            }
+        } catch (error) {
+            console.error('Failed to check for model updates:', error);
+        }
+    }
+
+    /**
+     * Receive a model update from the federated coordinator.
+     * Use this if pushing updates via socket/push notification.
+     */
+    async receiveModel(modelVersion: string, roundNumber: number, parameters: number[]): Promise<void> {
+        const model: FederatedModel = {
             version: modelVersion,
             roundNumber,
             parameters: [...parameters],
-            receivedAt: new Date(),
+            createdAt: new Date(),
         };
+
+        await localStorageManager.saveModel(model);
+        this.currentModel = model;
     }
 
     /**
@@ -153,13 +213,17 @@ export class FederatedLearningClient {
      * Queues for sync — works offline.
      */
     async submitGradients(payload: GradientPayload): Promise<void> {
-        // Queue for sync
-        await syncManager.queueForSync({
-            dataType: 'federated_gradient',
-            dataId: payload.submissionId,
-            payload,
+        // Create sync payload
+        const syncPayload: any = {
+            id: payload.submissionId,
+            type: 'GRADIENT',
+            data: payload,
             timestamp: new Date(),
-        });
+            retryCount: 0,
+        };
+
+        // Queue for synchronization
+        await syncManager.queueForSync(syncPayload);
 
         console.log(
             `Federated gradient ${payload.submissionId} queued for sync ` +
@@ -252,7 +316,7 @@ export class FederatedLearningClient {
     /**
      * Get current model information.
      */
-    getModelInfo(): ModelInfo | null {
+    getModelInfo(): FederatedModel | null {
         return this.currentModel;
     }
 

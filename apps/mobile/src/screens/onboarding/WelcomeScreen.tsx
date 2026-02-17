@@ -45,7 +45,7 @@ function WelcomeScreen({ navigation }: WelcomeScreenProps): React.JSX.Element {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Welcome to NeuroTrace</Text>
+            <Text style={styles.title} accessibilityRole="header">Welcome to NeuroTrace</Text>
             <Text style={styles.subtitle}>
               Your AI-powered recovery companion
             </Text>
@@ -61,7 +61,7 @@ function WelcomeScreen({ navigation }: WelcomeScreenProps): React.JSX.Element {
 
           {/* What to Expect */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>What to Expect</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">What to Expect</Text>
             <View style={styles.bulletPoint}>
               <Text style={styles.bullet}>•</Text>
               <Text style={styles.bulletText}>
@@ -104,6 +104,9 @@ function WelcomeScreen({ navigation }: WelcomeScreenProps): React.JSX.Element {
           style={styles.button}
           onPress={handleGetStarted}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Get Started"
+          accessibilityHint="Navigates to the demographic information screen"
         >
           <Text style={styles.buttonText}>Get Started</Text>
         </TouchableOpacity>

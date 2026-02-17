@@ -15,7 +15,7 @@ import {
     DeviationConfig,
     DEFAULT_DEVIATION_CONFIG,
 } from '@neurotrace/types';
-import type { AssessmentResult, Baseline, Deviation, TrendAnalysis } from '@neurotrace/types';
+import type { AssessmentResult, Deviation, TrendAnalysis } from '@neurotrace/types';
 import { localStorageManager } from '../database/LocalStorageManager';
 import { syncManager } from '../database/SyncManager';
 import { baselineManager } from './BaselineManager';
@@ -147,17 +147,17 @@ export class DeviationManager {
             severity,
             affectedModalities: trend.affectedModalities,
             consecutiveDays: trend.consecutiveDays,
-            maxDeviation: trend.maxDeviation,
             sustainedDeviations: trend.sustainedDeviations.length,
             detectedAt: new Date().toISOString(),
         };
 
         // Queue for sync
         await syncManager.queueForSync({
-            dataType: 'alert',
-            dataId: `alert-${assessment.assessmentId}`,
-            payload: alertPayload,
+            type: 'ALERT' as any,
+            id: `alert-${assessment.assessmentId}`,
+            data: alertPayload,
             timestamp: new Date(),
+            retryCount: 0,
         });
 
         console.log(

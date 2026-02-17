@@ -33,12 +33,14 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+import { navigationRef } from './NavigationService';
+
 /**
  * Main app navigator component
  */
 export function AppNavigator(): React.JSX.Element {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Welcome"
         screenOptions={{
@@ -90,7 +92,16 @@ export function AppNavigator(): React.JSX.Element {
           component={HomeScreen}
           options={{ title: 'NeuroTrace' }}
         />
-        {/* Additional screens will be added in later tasks */}
+        <Stack.Screen
+          name="Assessment"
+          component={require('../screens/AssessmentScreen').default}
+          options={{ title: 'Assessment' }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={require('../screens/SettingsScreen').default}
+          options={{ title: 'Settings' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

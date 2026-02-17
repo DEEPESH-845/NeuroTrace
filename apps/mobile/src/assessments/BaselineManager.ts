@@ -12,7 +12,7 @@
  */
 
 import { computeBaseline, validateBaselineQuality } from '@neurotrace/types';
-import { AssessmentResult, Baseline } from '@neurotrace/types';
+import type { Baseline } from '@neurotrace/types';
 import { localStorageManager } from '../database/LocalStorageManager';
 
 // ─── Types ──────────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import {
   CREATE_TABLES_SQL,
   CREATE_INDEXES_SQL,
   CREATE_TRIGGERS_SQL,
+  CREATE_FEDERATED_MODELS_TABLE_SQL,
   DATABASE_VERSION,
 } from './schema';
 
@@ -66,6 +67,39 @@ export const MIGRATIONS: Migration[] = [
       'DROP TABLE IF EXISTS patients',
     ],
   },
+  {
+    version: 2,
+    name: 'add_federated_models',
+    up: [
+      CREATE_FEDERATED_MODELS_TABLE_SQL,
+    ],
+    down: [
+      'DROP TABLE IF EXISTS federated_models',
+    ],
+  },
+  {
+    version: 3,
+    name: 'add_assessment_schedule',
+    up: [
+      `CREATE TABLE IF NOT EXISTS assessment_schedule (
+        id TEXT PRIMARY KEY NOT NULL,
+        patient_id TEXT NOT NULL,
+        due_date TEXT NOT NULL,
+        window_start TEXT NOT NULL,
+        window_end TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        reschedule_count INTEGER NOT NULL DEFAULT 0,
+        original_due_date TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      'CREATE INDEX IF NOT EXISTS idx_assessment_schedule_status ON assessment_schedule(status)',
+      'CREATE INDEX IF NOT EXISTS idx_assessment_schedule_due_date ON assessment_schedule(due_date)',
+    ],
+    down: [
+      'DROP TABLE IF EXISTS assessment_schedule',
+    ],
+  },
 ];
 
 /**
@@ -100,14 +134,14 @@ export function getMigrationsToRollback(
  */
 export function validateMigrations(): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   // Check for duplicate versions
   const versions = MIGRATIONS.map((m) => m.version);
   const uniqueVersions = new Set(versions);
   if (versions.length !== uniqueVersions.size) {
     errors.push('Duplicate migration versions detected');
   }
-  
+
   // Check for sequential versions starting from 1
   const sortedVersions = [...versions].sort((a, b) => a - b);
   for (let i = 0; i < sortedVersions.length; i++) {
@@ -115,7 +149,7 @@ export function validateMigrations(): { valid: boolean; errors: string[] } {
       errors.push(`Migration version gap detected: expected ${i + 1}, found ${sortedVersions[i]}`);
     }
   }
-  
+
   // Check that each migration has both up and down
   MIGRATIONS.forEach((migration) => {
     if (!migration.up || migration.up.length === 0) {
@@ -125,7 +159,7 @@ export function validateMigrations(): { valid: boolean; errors: string[] } {
       errors.push(`Migration ${migration.version} (${migration.name}) missing 'down' statements`);
     }
   });
-  
+
   return {
     valid: errors.length === 0,
     errors,

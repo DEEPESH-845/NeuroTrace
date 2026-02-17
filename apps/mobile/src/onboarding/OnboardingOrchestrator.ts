@@ -7,7 +7,6 @@
  * Requirements: 1.1, 1.2
  */
 
-import { PatientProfile } from '@neurotrace/types';
 import { executeQuery } from '../database';
 
 /**
@@ -402,7 +401,7 @@ export class OnboardingOrchestrator {
   ): Promise<void> {
     // TODO: Implement notification scheduling using react-native-push-notification
     // or @react-native-community/push-notification-ios and @notifee/react-native
-    
+
     // For now, log the scheduling request
     console.log('Scheduling daily assessment reminders:', {
       patientId,

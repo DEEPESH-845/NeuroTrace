@@ -11,6 +11,8 @@
  * Requirements: 2.1, 2.2, 2.3, 2.7, 6.8
  */
 
+import { federatedClient } from '../ai/FederatedLearningClient';
+import { reschedulingManager } from '../assessments/ReschedulingManager';
 import {
   AssessmentSession,
   AssessmentResult,
@@ -135,7 +137,7 @@ export class AssessmentOrchestrator implements IAssessmentOrchestrator {
   private facialDetector: IFacialAsymmetryDetector | null = null;
   private activeSessions: Map<string, AssessmentSession> = new Map();
   private sessionStartTimes: Map<string, number> = new Map();
-  private rawDataCleanupTimers: Map<string, NodeJS.Timeout> = new Map();
+  private rawDataCleanupTimers: Map<string, any> = new Map();
 
   constructor(
     speechExtractor?: ISpeechBiomarkerExtractor,
@@ -144,6 +146,7 @@ export class AssessmentOrchestrator implements IAssessmentOrchestrator {
     this.speechExtractor = speechExtractor || createSpeechBiomarkerExtractor();
     this.facialDetector = facialDetector || null;
   }
+
 
   /**
    * Initialize the orchestrator (lazy initialization of facial detector)
@@ -316,6 +319,29 @@ export class AssessmentOrchestrator implements IAssessmentOrchestrator {
         },
       };
 
+      // Run on-device deviation analysis
+      if (!isBaselinePeriod) {
+        try {
+          // Import service dynamically if needed or use imported singleton
+          const { deviationAnalysisService } = require('../ai/DeviationAnalysisService');
+          const analysis = await deviationAnalysisService.analyze(assessmentResult);
+
+          if (analysis.deviations.length > 0) {
+            assessmentResult.deviations = analysis.deviations;
+          }
+          if (analysis.trend) {
+            assessmentResult.trendAnalysis = analysis.trend;
+          }
+
+          if (assessmentResult.deviations && assessmentResult.deviations.length > 0 || assessmentResult.trendAnalysis) {
+            console.log(`Assessment ${assessmentResult.assessmentId} flagged with deviations.`);
+          }
+        } catch (err) {
+          console.error('Error running deviation analysis:', err);
+          // Continue saving even if analysis fails
+        }
+      }
+
       // Save assessment to local storage (only derived metrics)
       await localStorageManager.saveAssessment(assessmentResult);
 
@@ -328,6 +354,17 @@ export class AssessmentOrchestrator implements IAssessmentOrchestrator {
         `Assessment ${assessmentResult.assessmentId} completed in ${completionTimeSec}s for session ${session.sessionId}`
       );
 
+      // Trigger Federated Learning flow (async, fire-and-forget)
+      // We don't await this to keep the UI responsive
+      this.triggerFederatedLearning(session.patientId).catch((err: unknown) => {
+        console.error('Federated learning trigger failed:', err);
+      });
+
+      // Update scheduling status (fire-and-forget)
+      this.updateSchedulingStatus(session.patientId).catch((err: unknown) => {
+        console.error('Scheduling update failed:', err);
+      });
+
       return assessmentResult;
     } catch (error) {
       // Mark session as failed
@@ -339,6 +376,47 @@ export class AssessmentOrchestrator implements IAssessmentOrchestrator {
         `Failed to complete assessment: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error : undefined
       );
+    }
+  }
+
+  /**
+   * Trigger federated learning process
+   * Checks for model updates and computes gradients if conditions met
+   */
+  private async triggerFederatedLearning(patientId: string): Promise<void> {
+    try {
+      // Ensure client is initialized
+      await federatedClient.initialize();
+
+      // Check for updates (opportunistic)
+      await federatedClient.checkForModelUpdates();
+
+      // Compute gradients
+      const gradients = await federatedClient.computeGradients(patientId);
+
+      if (gradients) {
+        await federatedClient.submitGradients(gradients);
+      }
+    } catch (error) {
+      console.error('Error in federated learning flow:', error);
+      // Suppress error - FL is background task
+    }
+  }
+
+  /**
+   * Update scheduling status after assessment
+   */
+  private async updateSchedulingStatus(patientId: string): Promise<void> {
+    try {
+      const upcoming = await reschedulingManager.getUpcomingAssessment(patientId);
+      if (upcoming) {
+        // If there's a pending assessment scheduled for now/today, mark it complete
+        // Since we don't have the schedule ID in the session, we infer it from "upcoming"
+        // In a real app, session would link to schedule ID
+        await reschedulingManager.markAssessmentAsCompleted(upcoming.id);
+      }
+    } catch (error) {
+      console.error('Error updating scheduling status:', error);
     }
   }
 
@@ -371,7 +449,7 @@ export class AssessmentOrchestrator implements IAssessmentOrchestrator {
     const timer = setTimeout(() => {
       // In JavaScript, we can't truly "delete" the data from memory,
       // but we can clear references and let garbage collection handle it
-      
+
       // Clear the data reference
       if (data instanceof Float32Array) {
         // For typed arrays, we can fill with zeros
