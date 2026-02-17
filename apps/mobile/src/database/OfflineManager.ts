@@ -191,7 +191,7 @@ export class OfflineManager {
         try {
             const syncResult = await syncManager.syncWhenOnline();
             console.log(
-                `Sync complete: ${syncResult.successCount} synced, ${syncResult.failureCount} failed.`
+                `Sync complete: ${syncResult.syncedCount} synced, ${syncResult.failedCount} failed.`
             );
         } catch (error) {
             console.error('Sync after reconnect failed:', error);

@@ -383,6 +383,14 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
   }
 
   /**
+   * Delete baseline for a patient
+   */
+  async deleteBaseline(patientId: string): Promise<void> {
+    const sql = 'DELETE FROM baselines WHERE patient_id = ?';
+    executeQuery(sql, [patientId]);
+  }
+
+  /**
    * Get recent assessments for a patient
    * 
    * @param patientId - Patient ID
@@ -400,9 +408,10 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
       ORDER BY timestamp DESC
     `;
 
-    const rows = executeQuery<AssessmentRow>(sql, [patientId, days]);
+    // Fixed: executeQuery returns { rows: T[]; rowsAffected: number; }, so access .rows
+    const result = await executeQuery<AssessmentRow>(sql, [patientId, days]);
 
-    return rows.rows.map((row) => this.mapRowToAssessmentResult(row));
+    return result.rows.map((row) => this.mapRowToAssessmentResult(row));
   }
 
   /**
@@ -418,7 +427,7 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
     // SQLCipher handles encryption at the database level with AES-256
     // This method is a placeholder for additional application-level encryption
     // In production, you would use react-native-quick-crypto or similar
-    
+
     // For now, return a placeholder that indicates data is encrypted by SQLCipher
     const dataString = JSON.stringify(data);
     // Simple base64 encoding (not real encryption, just for interface compliance)
@@ -440,12 +449,12 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
   async decryptData(encrypted: EncryptedData): Promise<unknown> {
     // SQLCipher handles decryption at the database level
     // This is a placeholder implementation
-    
+
     if (encrypted.iv === 'sqlcipher-encrypted') {
       const dataString = base64Decode(encrypted.encrypted);
       return JSON.parse(dataString);
     }
-    
+
     throw new Error('Unsupported encryption format');
   }
 
@@ -493,6 +502,170 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
       },
     };
   }
+
+  /**
+   * Save federated model to local storage
+   */
+  async saveModel(model: FederatedModel): Promise<void> {
+    // Convert weights (number[]) to Uint8Array (Float32Array view) for BLOB storage
+    const weightsFloats = new Float32Array(model.parameters);
+    const weightsBlob = new Uint8Array(weightsFloats.buffer);
+
+    const sql = `
+      INSERT OR REPLACE INTO federated_models (
+        id, version, weights_blob, config_json, created_at, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      model.id || generateUUID(),
+      model.version,
+      weightsBlob,
+      JSON.stringify({ roundNumber: model.roundNumber }), // Storing roundNumber in config
+      new Date().toISOString(),
+      1 // active
+    ];
+
+    executeQuery(sql, params);
+  }
+
+  /**
+   * Get latest active federated model
+   */
+  async getLatestModel(): Promise<FederatedModel | null> {
+    const sql = `
+      SELECT * FROM federated_models
+      WHERE is_active = 1
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    const row = executeQuerySingle<any>(sql);
+
+    if (!row) return null;
+
+    // Convert BLOB back to number[]
+    // row.weights_blob should be an ArrayBuffer or Uint8Array depending on driver
+    // safely handle conversion
+    let parameters: number[] = [];
+    if (row.weights_blob) {
+      // Assuming quick-sqlite returns Uint8Array or ArrayBuffer for blobs
+      const buffer = row.weights_blob instanceof Uint8Array
+        ? row.weights_blob.buffer
+        : row.weights_blob;
+      const floats = new Float32Array(buffer);
+      parameters = Array.from(floats);
+    }
+
+    const config = JSON.parse(row.config_json);
+
+    return {
+      id: row.id,
+      version: row.version,
+      parameters,
+      roundNumber: config.roundNumber || 0,
+      createdAt: new Date(row.created_at),
+    };
+  }
+
+  /**
+   * Save assessment schedule
+   */
+  async saveAssessmentSchedule(schedule: any): Promise<void> {
+    const query = `
+      INSERT INTO assessment_schedule 
+      (id, patient_id, due_date, window_start, window_end, status, reschedule_count, original_due_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    await executeQuery(query, [
+      schedule.id,
+      schedule.patientId,
+      schedule.dueDate,
+      schedule.windowStart,
+      schedule.windowEnd,
+      schedule.status,
+      schedule.rescheduleCount,
+      schedule.originalDueDate || null
+    ]);
+  }
+
+  /**
+   * Update assessment schedule
+   */
+  async updateAssessmentSchedule(schedule: any): Promise<void> {
+    const query = `
+      UPDATE assessment_schedule
+      SET due_date = ?, window_end = ?, status = ?, reschedule_count = ?, original_due_date = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `;
+    await executeQuery(query, [
+      schedule.dueDate,
+      schedule.windowEnd,
+      schedule.status,
+      schedule.rescheduleCount,
+      schedule.originalDueDate || null,
+      schedule.id
+    ]);
+  }
+
+  /**
+   * Get assessment schedule by ID
+   */
+  async getAssessmentSchedule(id: string): Promise<any | null> {
+    const query = 'SELECT * FROM assessment_schedule WHERE id = ?';
+    // Fixed: executeQuery returns { rows: T[]; rowsAffected: number; }, so access .rows
+    const result = await executeQuery(query, [id]);
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      patientId: row.patient_id,
+      dueDate: row.due_date,
+      windowStart: row.window_start,
+      windowEnd: row.window_end,
+      status: row.status,
+      rescheduleCount: row.reschedule_count,
+      originalDueDate: row.original_due_date
+    };
+  }
+
+  /**
+   * Get pending assessment for patient
+   */
+  async getPendingAssessment(patientId: string): Promise<any | null> {
+    const query = `
+      SELECT * FROM assessment_schedule 
+      WHERE patient_id = ? AND status = 'PENDING' 
+      ORDER BY due_date ASC 
+      LIMIT 1
+    `;
+    // Fixed: executeQuery returns { rows: T[]; rowsAffected: number; }, so access .rows
+    const result = await executeQuery(query, [patientId]);
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      patientId: row.patient_id,
+      dueDate: row.due_date,
+      windowStart: row.window_start,
+      windowEnd: row.window_end,
+      status: row.status,
+      rescheduleCount: row.reschedule_count,
+      originalDueDate: row.original_due_date
+    };
+  }
+}
+
+export interface FederatedModel {
+  id?: string;
+  version: string;
+  roundNumber: number;
+  parameters: number[];
+  createdAt?: Date;
 }
 
 /**

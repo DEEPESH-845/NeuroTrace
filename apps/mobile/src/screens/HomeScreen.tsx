@@ -13,13 +13,13 @@ function HomeScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.content}>
-        <Text style={styles.title}>NeuroTrace</Text>
+        <Text style={styles.title} accessibilityRole="header">NeuroTrace</Text>
         <Text style={styles.subtitle}>AI-Powered Neurological Monitoring</Text>
-        <Text style={styles.status}>✓ React Native with TypeScript</Text>
-        <Text style={styles.status}>✓ React Navigation</Text>
-        <Text style={styles.status}>✓ SQLCipher (Encrypted Storage)</Text>
-        <Text style={styles.status}>✓ ONNX Runtime</Text>
-        <Text style={styles.status}>✓ MediaPipe Face Mesh</Text>
+        <Text style={styles.status} accessibilityRole="text">✓ React Native with TypeScript</Text>
+        <Text style={styles.status} accessibilityRole="text">✓ React Navigation</Text>
+        <Text style={styles.status} accessibilityRole="text">✓ SQLCipher (Encrypted Storage)</Text>
+        <Text style={styles.status} accessibilityRole="text">✓ ONNX Runtime</Text>
+        <Text style={styles.status} accessibilityRole="text">✓ MediaPipe Face Mesh</Text>
       </View>
     </SafeAreaView>
   );

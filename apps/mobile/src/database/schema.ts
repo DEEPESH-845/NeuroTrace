@@ -312,10 +312,39 @@ BEGIN
 END;
 `;
 
+// ... existing code ...
+export const CREATE_FEDERATED_MODELS_TABLE_SQL = `
+-- Federated Learning Models Table
+-- Stores downloaded global models
+CREATE TABLE IF NOT EXISTS federated_models (
+  id TEXT PRIMARY KEY NOT NULL,
+  version TEXT NOT NULL UNIQUE,
+  weights_blob BLOB NOT NULL,
+  config_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  is_active INTEGER NOT NULL DEFAULT 0
+);
+
+-- Assessment Schedule Table
+-- Tracks upcoming assessments and rescheduling status
+CREATE TABLE IF NOT EXISTS assessment_schedule (
+  id TEXT PRIMARY KEY NOT NULL,
+  patient_id TEXT NOT NULL,
+  due_date TEXT NOT NULL,
+  window_start TEXT NOT NULL,
+  window_end TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING',  -- PENDING, COMPLETED, MISSED, CANCELLED
+  reschedule_count INTEGER NOT NULL DEFAULT 0,
+  original_due_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
 /**
  * Database version for migration tracking
  */
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 3;
 
 /**
  * Database configuration
@@ -333,6 +362,7 @@ export const DATABASE_CONFIG = {
  * SQL statements for dropping all tables (for testing/reset)
  */
 export const DROP_TABLES_SQL = `
+DROP TABLE IF EXISTS assessment_schedule;
 DROP TABLE IF EXISTS fl_gradients;
 DROP TABLE IF EXISTS caregivers;
 DROP TABLE IF EXISTS sync_queue;

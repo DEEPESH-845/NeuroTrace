@@ -37,8 +37,8 @@ export const ReactionTimeTask: React.FC<ReactionTimeTaskProps> = ({ onComplete, 
   const [hasStarted, setHasStarted] = useState(false);
   
   const stimulusTimeRef = useRef<number>(0);
-  const waitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const stimulusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const waitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stimulusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scaleAnim = useRef(new Animated.Value(0)).current;
 
   // Generate random wait time between min and max
