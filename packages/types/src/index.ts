@@ -15,3 +15,6 @@ export * from './validators';
 
 // Baseline computation functions
 export * from './baseline/computeBaseline';
+
+// Deviation detection
+export * from './deviation/DeviationDetector';

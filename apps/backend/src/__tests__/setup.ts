@@ -3,7 +3,9 @@
  * 
  * Global setup for Jest tests including database configuration
  * 
- * IMPORTANT: These tests require a PostgreSQL database.
+ * NOTE: Database tests require PostgreSQL. Unit tests (auth, validation,
+ * FHIR, etc.) will run without a database. Only tests that directly
+ * use Prisma will fail without a running PostgreSQL instance.
  * 
  * Quick Setup with Docker:
  *   docker run --name neurotrace-test-db \
@@ -28,7 +30,7 @@ process.env.SUPABASE_URL = 'https://test.supabase.co';
 process.env.SUPABASE_ANON_KEY = 'test-anon-key';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
 
-// Run migrations before tests
+// Run migrations before tests (gracefully skip if DB unavailable)
 beforeAll(async () => {
   try {
     // Generate Prisma Client
@@ -43,15 +45,13 @@ beforeAll(async () => {
       stdio: 'pipe',
     });
   } catch (error: any) {
-    console.error('\n❌ Failed to setup test database');
-    console.error('\nThese tests require a PostgreSQL database.');
-    console.error('\nQuick setup with Docker:');
-    console.error('  docker run --name neurotrace-test-db \\');
-    console.error('    -e POSTGRES_PASSWORD=postgres \\');
-    console.error('    -e POSTGRES_DB=neurotrace_test \\');
-    console.error('    -p 5432:5432 \\');
-    console.error('    -d postgres:15');
-    console.error('\nThen run: npm test\n');
-    throw error;
+    console.warn('\n⚠️  Database not available — skipping DB setup.');
+    console.warn('Tests requiring database will fail, but pure unit tests will still run.');
+    console.warn('\nTo enable DB tests, start PostgreSQL:');
+    console.warn('  docker run --name neurotrace-test-db \\');
+    console.warn('    -e POSTGRES_PASSWORD=postgres \\');
+    console.warn('    -e POSTGRES_DB=neurotrace_test \\');
+    console.warn('    -p 5432:5432 \\');
+    console.warn('    -d postgres:15\n');
   }
 }, 30000); // 30 second timeout for setup

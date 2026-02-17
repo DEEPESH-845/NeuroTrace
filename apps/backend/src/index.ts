@@ -2,6 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { authMiddleware } from './middleware/authMiddleware';
+import assessmentRoutes from './routes/assessmentRoutes';
+import alertRoutes from './routes/alertRoutes';
+import patientRoutes from './routes/patientRoutes';
+import fhirRoutes from './routes/fhirRoutes';
+import federatedRoutes from './routes/federatedRoutes';
+import adminRoutes from './routes/adminRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -12,32 +19,28 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors()); // CORS
-app.use(express.json()); // JSON body parser
+app.use(express.json({ limit: '10mb' })); // JSON body parser with size limit
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Health check endpoint (no auth required)
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes (to be implemented)
-app.use('/api/v1/assessments', (req, res) => {
-  res.status(501).json({ error: 'Not implemented yet' });
-});
+// Auth middleware for all API routes
+app.use('/api/v1', authMiddleware);
 
-app.use('/api/v1/alerts', (req, res) => {
-  res.status(501).json({ error: 'Not implemented yet' });
-});
+// API routes
+app.use('/api/v1/assessments', assessmentRoutes);
+app.use('/api/v1/alerts', alertRoutes);
+app.use('/api/v1/patients', patientRoutes);
+app.use('/api/v1/federated', federatedRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
-app.use('/api/v1/patients', (req, res) => {
-  res.status(501).json({ error: 'Not implemented yet' });
-});
-
-app.use('/fhir', (req, res) => {
-  res.status(501).json({ error: 'Not implemented yet' });
-});
+// FHIR routes (also authenticated)
+app.use('/fhir', authMiddleware, fhirRoutes);
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.stack);
   res.status(500).json({
     error: {
