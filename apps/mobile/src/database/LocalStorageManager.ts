@@ -408,9 +408,10 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
       ORDER BY timestamp DESC
     `;
 
-    const rows = executeQuery<AssessmentRow>(sql, [patientId, days]);
+    // Fixed: executeQuery returns { rows: T[]; rowsAffected: number; }, so access .rows
+    const result = await executeQuery<AssessmentRow>(sql, [patientId, days]);
 
-    return rows.rows.map((row) => this.mapRowToAssessmentResult(row));
+    return result.rows.map((row) => this.mapRowToAssessmentResult(row));
   }
 
   /**
@@ -612,11 +613,12 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
    */
   async getAssessmentSchedule(id: string): Promise<any | null> {
     const query = 'SELECT * FROM assessment_schedule WHERE id = ?';
-    const results = await executeQuery(query, [id]);
+    // Fixed: executeQuery returns { rows: T[]; rowsAffected: number; }, so access .rows
+    const result = await executeQuery(query, [id]);
 
-    if (results.length === 0) return null;
+    if (result.rows.length === 0) return null;
 
-    const row = results.item(0);
+    const row = result.rows[0];
     return {
       id: row.id,
       patientId: row.patient_id,
@@ -639,11 +641,12 @@ export class LocalStorageManagerImpl implements LocalStorageManager {
       ORDER BY due_date ASC 
       LIMIT 1
     `;
-    const results = await executeQuery(query, [patientId]);
+    // Fixed: executeQuery returns { rows: T[]; rowsAffected: number; }, so access .rows
+    const result = await executeQuery(query, [patientId]);
 
-    if (results.length === 0) return null;
+    if (result.rows.length === 0) return null;
 
-    const row = results.item(0);
+    const row = result.rows[0];
     return {
       id: row.id,
       patientId: row.patient_id,
